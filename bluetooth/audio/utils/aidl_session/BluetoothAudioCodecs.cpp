@@ -43,7 +43,7 @@ namespace bluetooth {
 namespace audio {
 
 static const PcmCapabilities kDefaultSoftwarePcmCapabilities = {
-    .sampleRateHz = {8000, 16000, 24000, 32000, 44100, 48000, 88200, 96000},
+    .sampleRateHz = {8000, 16000, 24000, 32000, 44100, 48000, 88200, 96000, 192000},
     .channelMode = {ChannelMode::MONO, ChannelMode::STEREO},
     .bitsPerSample = {16, 24, 32},
     .dataIntervalUs = {},
