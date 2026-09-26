@@ -36,10 +36,39 @@ using aidl::android::media::audio::common::AudioUuid;
 
 namespace aidl::android::hardware::audio::effect {
 
+static inline AudioUuid effectUuidToAidl(const effect_uuid_t& u) {
+    AudioUuid aidlUuid;
+    aidlUuid.timeLow = static_cast<int32_t>(u.timeLow);
+    aidlUuid.timeMid = static_cast<int32_t>(u.timeMid);
+    aidlUuid.timeHiAndVersion = static_cast<int32_t>(u.timeHiAndVersion);
+    aidlUuid.clockSeq = static_cast<int32_t>(u.clockSeq);
+    aidlUuid.node.assign(u.node, u.node + 6);
+    return aidlUuid;
+}
+
+static const effect_uuid_t kAxionFxTypeUuid = {
+    0x5867be72, 0x4060, 0x4c55, 0xa378, {0xc1, 0xcd, 0xef, 0x3e, 0x13, 0x53}
+};
+
+static const effect_uuid_t kAxionFxImplUuid = {
+    0xf35cb927, 0xa887, 0x4f3d, 0x847f, {0x77, 0x06, 0x34, 0x48, 0x6d, 0x53}
+};
+
+const AudioUuid& getEffectTypeUuidAxionFx() {
+    static const AudioUuid uuid = effectUuidToAidl(kAxionFxTypeUuid);
+    return uuid;
+}
+
+const AudioUuid& getEffectImplUuidAxionFx() {
+    static const AudioUuid uuid = effectUuidToAidl(kAxionFxImplUuid);
+    return uuid;
+}
+
 Factory::Factory(const std::string& file) : mConfig(EffectConfig(file)) {
     LOG(DEBUG) << __func__ << " with config file: " << file;
     loadEffectLibs();
-    loadHardcodedEffects();
+    loadViperEffects();
+    loadAxionFxEffects();
 }
 
 Factory::~Factory() {
@@ -298,7 +327,7 @@ void Factory::getDlSyms_l(DlEntry& entry) {
     }
 }
 
-void Factory::loadHardcodedEffects() {
+void Factory::loadViperEffects() {
     static const char* kViperLibPaths[] = {
         "/vendor/lib64/soundfx/libviperaidl.so",
         "/vendor/lib/soundfx/libviperaidl.so"
@@ -321,6 +350,31 @@ void Factory::loadHardcodedEffects() {
         return;
     }
     LOG(DEBUG) << __func__ << " ViPER library not found, skipping";
+}
+
+void Factory::loadAxionFxEffects() {
+    static const char* kAxionFxLibPaths[] = {
+        "/vendor/lib64/soundfx/libaxionfxaidl.so",
+        "/vendor/lib/soundfx/libaxionfxaidl.so"
+    };
+
+    for (const char* libPath : kAxionFxLibPaths) {
+        if (access(libPath, R_OK) != 0) {
+            continue;
+        }
+
+        Descriptor::Identity id;
+        id.type = getEffectTypeUuidAxionFx();
+        id.uuid = getEffectImplUuidAxionFx();
+        id.proxy = std::nullopt;
+
+        LOG(INFO) << __func__ << " loading hardcoded AxionFx effect from " << libPath;
+        if (openEffectLibrary(id.uuid, libPath)) {
+            mIdentitySet.insert(std::move(id));
+        }
+        return;
+    }
+    LOG(DEBUG) << __func__ << " AxionFx library not found, skipping";
 }
 
 }  // namespace aidl::android::hardware::audio::effect
