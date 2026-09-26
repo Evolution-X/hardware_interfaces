@@ -118,7 +118,8 @@ class Factory : public BnFactory {
             REQUIRES(mMutex);
 
     void loadEffectLibs();
-    void loadHardcodedEffects();
+    void loadViperEffects();
+    void loadAxionFxEffects();
     /* Get effect_dl_interface_s from library handle */
     void getDlSyms_l(DlEntry& entry) REQUIRES(mMutex);
 };
