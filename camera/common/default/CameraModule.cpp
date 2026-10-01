@@ -18,6 +18,7 @@
 #define ATRACE_TAG ATRACE_TAG_CAMERA
 // #define LOG_NDEBUG 0
 
+#include <cutils/properties.h>
 #include <utils/Trace.h>
 #include <aidl/android/hardware/graphics/common/PixelFormat.h>
 
@@ -260,6 +261,46 @@ int CameraModule::init() {
     return res;
 }
 
+
+// The framework sizes constrained high speed request lists as fps_max /
+// previewFps, where previewFps is the lowest fps_min advertised for the
+// size (30 or 60). Some HALs report fps_min 30 but a batch_size_max that
+// only covers a 60 fps preview (fps_max / 60), so the framework sends
+// batches twice as large as the HAL handles and recording stalls. With
+// ro.vendor.camera.hfr.preview_fps=60, advertise fps_min 60 for those
+// configurations so the batch size matches what the HAL reports.
+static void fixupHighSpeedPreviewFps(CameraMetadata& chars) {
+    if (property_get_int32("ro.vendor.camera.hfr.preview_fps", 0) != 60) {
+        return;
+    }
+    camera_metadata_entry entry =
+            chars.find(ANDROID_CONTROL_AVAILABLE_HIGH_SPEED_VIDEO_CONFIGURATIONS);
+    if (entry.count == 0 || entry.count % 5 != 0) {
+        return;
+    }
+    Vector<int32_t> configs;
+    bool changed = false;
+    for (size_t i = 0; i < entry.count; i += 5) {
+        int32_t fpsMin = entry.data.i32[i + 2];
+        int32_t fpsMax = entry.data.i32[i + 3];
+        int32_t batchMax = entry.data.i32[i + 4];
+        if (fpsMin == 30 && fpsMax % 60 == 0 && batchMax > 0 &&
+                batchMax < fpsMax / 30 && batchMax >= fpsMax / 60) {
+            fpsMin = 60;
+            changed = true;
+        }
+        configs.add(entry.data.i32[i]);
+        configs.add(entry.data.i32[i + 1]);
+        configs.add(fpsMin);
+        configs.add(fpsMax);
+        configs.add(batchMax);
+    }
+    if (changed) {
+        ALOGI("%s: advertising a 60 fps high speed preview", __FUNCTION__);
+        chars.update(ANDROID_CONTROL_AVAILABLE_HIGH_SPEED_VIDEO_CONFIGURATIONS, configs);
+    }
+}
+
 int CameraModule::getCameraInfo(int cameraId, struct camera_info* info) {
     ATRACE_CALL();
     Mutex::Autolock lock(mCameraInfoLock);
@@ -300,6 +341,7 @@ int CameraModule::getCameraInfo(int cameraId, struct camera_info* info) {
         CameraMetadata m;
         m.append(rawInfo.static_camera_characteristics);
         deriveCameraCharacteristicsKeys(rawInfo.device_version, m);
+        fixupHighSpeedPreviewFps(m);
         cameraInfo = rawInfo;
         cameraInfo.static_camera_characteristics = m.release();
         index = mCameraInfoMap.add(cameraId, cameraInfo);
