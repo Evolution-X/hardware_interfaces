@@ -27,6 +27,7 @@ cc_library_static {
         "-Wall",
     ],
     shared_libs: [
+        "libcutils",
         "liblog",
         "libgralloctypes",
         "libhardware",
