@@ -1004,7 +1004,16 @@ void CameraDeviceSession::postProcessConfigurationLocked(
             mVideoStreamIds.push_back(stream.id);
         }
     }
-    mResultBatcher.setBatchedStreams(mVideoStreamIds);
+    // Holding video buffers until the whole HFR batch completes means the
+    // framework can only have one batch in flight when the batch size equals
+    // the stream's max_buffers (240 fps on some HALs), and recording stalls if
+    // the HAL needs the next batch to finish the current one. Such devices can
+    // return video buffers per frame; metadata and shutters stay batched.
+    if (property_get_bool("ro.vendor.camera.hfr.batch_video_buffers", true)) {
+        mResultBatcher.setBatchedStreams(mVideoStreamIds);
+    } else {
+        mResultBatcher.setBatchedStreams({});
+    }
 }
 
 
