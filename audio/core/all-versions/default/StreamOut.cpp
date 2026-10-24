@@ -666,9 +666,12 @@ Return<Result> StreamOut::selectPresentation(int32_t /*presentationId*/, int32_t
 #endif
 
 #if MAJOR_VERSION >= 6
+// API 3.0 output streams can end before these appended callback fields. Check
+// the device ABI before inspecting a slot that may instead contain private data.
 Return<void> StreamOut::getDualMonoMode(getDualMonoMode_cb _hidl_cb) {
     audio_dual_mono_mode_t mode = AUDIO_DUAL_MONO_MODE_OFF;
-    Result retval = mStream->get_dual_mono_mode != nullptr
+    Result retval = mDevice->version() >= AUDIO_DEVICE_API_VERSION_3_2 &&
+                                    mStream->get_dual_mono_mode != nullptr
                             ? Stream::analyzeStatus("get_dual_mono_mode",
                                                     mStream->get_dual_mono_mode(mStream, &mode))
                             : Result::NOT_SUPPORTED;
@@ -677,7 +680,8 @@ Return<void> StreamOut::getDualMonoMode(getDualMonoMode_cb _hidl_cb) {
 }
 
 Return<Result> StreamOut::setDualMonoMode(DualMonoMode mode) {
-    return mStream->set_dual_mono_mode != nullptr
+    return mDevice->version() >= AUDIO_DEVICE_API_VERSION_3_2 &&
+                           mStream->set_dual_mono_mode != nullptr
                    ? Stream::analyzeStatus(
                              "set_dual_mono_mode",
                              mStream->set_dual_mono_mode(mStream,
@@ -687,7 +691,8 @@ Return<Result> StreamOut::setDualMonoMode(DualMonoMode mode) {
 
 Return<void> StreamOut::getAudioDescriptionMixLevel(getAudioDescriptionMixLevel_cb _hidl_cb) {
     float leveldB = -std::numeric_limits<float>::infinity();
-    Result retval = mStream->get_audio_description_mix_level != nullptr
+    Result retval = mDevice->version() >= AUDIO_DEVICE_API_VERSION_3_2 &&
+                                    mStream->get_audio_description_mix_level != nullptr
                             ? Stream::analyzeStatus(
                                       "get_audio_description_mix_level",
                                       mStream->get_audio_description_mix_level(mStream, &leveldB))
@@ -697,7 +702,8 @@ Return<void> StreamOut::getAudioDescriptionMixLevel(getAudioDescriptionMixLevel_
 }
 
 Return<Result> StreamOut::setAudioDescriptionMixLevel(float leveldB) {
-    return mStream->set_audio_description_mix_level != nullptr
+    return mDevice->version() >= AUDIO_DEVICE_API_VERSION_3_2 &&
+                           mStream->set_audio_description_mix_level != nullptr
                    ? Stream::analyzeStatus(
                              "set_audio_description_mix_level",
                              mStream->set_audio_description_mix_level(mStream, leveldB))
@@ -707,7 +713,8 @@ Return<Result> StreamOut::setAudioDescriptionMixLevel(float leveldB) {
 Return<void> StreamOut::getPlaybackRateParameters(getPlaybackRateParameters_cb _hidl_cb) {
     audio_playback_rate_t rate = AUDIO_PLAYBACK_RATE_INITIALIZER;
     Result retval =
-            mStream->get_playback_rate_parameters != nullptr
+            mDevice->version() >= AUDIO_DEVICE_API_VERSION_3_2 &&
+                            mStream->get_playback_rate_parameters != nullptr
                     ? Stream::analyzeStatus("get_playback_rate_parameters",
                                             mStream->get_playback_rate_parameters(mStream, &rate))
                     : Result::NOT_SUPPORTED;
@@ -722,7 +729,8 @@ Return<Result> StreamOut::setPlaybackRateParameters(const PlaybackRate& playback
             playbackRate.speed, playbackRate.pitch,
             static_cast<audio_timestretch_stretch_mode_t>(playbackRate.timestretchMode),
             static_cast<audio_timestretch_fallback_mode_t>(playbackRate.fallbackMode)};
-    return mStream->set_playback_rate_parameters != nullptr
+    return mDevice->version() >= AUDIO_DEVICE_API_VERSION_3_2 &&
+                           mStream->set_playback_rate_parameters != nullptr
                    ? Stream::analyzeStatus("set_playback_rate_parameters",
                                            mStream->set_playback_rate_parameters(mStream, &rate))
                    : Result::NOT_SUPPORTED;
